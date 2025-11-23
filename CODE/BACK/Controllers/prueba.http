@@ -1,0 +1,190 @@
+###
+### Agregar un nuevo usuario
+###
+
+POST http://localhost:3000/users/add
+Content-Type: application/json
+
+{
+  "name": "Mani2c2",
+  "file": "345532",
+  "email": "manic2@example2.com",
+  "password": "password123",
+  "type": "coach"
+}
+
+###
+### Buscar un usuario por su file
+###
+
+GET http://localhost:3000/users/find/745172
+###
+GET http://localhost:3000/users/name/%20
+###
+### Eliminar un usuario por su file
+###
+
+DELETE http://localhost:3000/users/delete/JD123
+
+###
+### Modificar un usuario por su file
+###
+
+PUT http://localhost:3000/users/update/JD123
+Content-Type: application/json
+
+{
+  "name": "John Smith"
+}
+
+###
+### Obtener todos los usuarios
+###
+
+GET http://localhost:3000/users/all
+
+###
+### Iniciar sesión de usuario
+###
+
+POST http://localhost:3000/users/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+###
+### Agregar rutina a un usuario
+###
+
+POST http://localhost:3000/users/addroutine/745359
+Content-Type: application/json
+
+[
+{
+  "name": "Pecho",
+  "exercises": [
+    {
+      "exercise": "Squats",
+      "sets": 3,
+      "reps": 10
+    },
+    {
+      "exercise": "Push-ups",
+      "sets": 3,
+      "reps": 12
+    },
+    {
+      "exercise": "Pull-ups",
+      "sets": 3,
+      "reps": 8
+    }
+  ]
+}
+]
+
+
+### Agregar un ejercicio (POST)
+
+POST http://localhost:3000/exercises/add
+Content-Type: application/json
+
+{
+    "name": "Ejercicio de prueba",
+    "muscle": "Pecho",
+    "description": "Este es un ejercicio de prueba para demostración",
+    "link": "http://localhost:3000/"
+}
+
+### Obtener todos los ejercicios (GET)
+
+GET http://localhost:3000/exercises/all
+
+### Obtener ejercicios por músculo (GET)
+
+GET http://localhost:3000/exercises/muscle/Pecho
+
+### Eliminar un ejercicio por nombre (DELETE)
+
+DELETE http://localhost:3000/exercises/delete/Ejercicio%20de%20prueba
+
+
+
+###
+GET http://localhost:3000/clases/all
+###
+POST http://localhost:3000/clases/add
+Content-Type: application/json
+
+{
+    "name": "Clase de Yoga",
+    "hour": "8:30 pm",
+    "day": "Lunes",
+    "reservations": [],
+    "capacity": 20
+}
+###
+POST http://localhost:3000/clases/delete
+Content-Type: application/json
+
+{
+    "name": "Clase de Yoga",
+    "hour": "8:30 pm",
+    "day": "Lunes"
+}
+###
+POST http://localhost:3000/clases/addReservation
+Content-Type: application/json
+
+{
+    "name": "Clase de Yoga",
+    "hour": "8:30 pm",
+    "day": "Lunes",
+    "reservation": "manc"
+}
+
+###
+DELETE  http://localhost:3000/clases/deleteReservation
+Content-Type: application/json
+
+{
+    "id": "6635290aa45647210a49b1a7",
+    "reservation": "aaa"
+}
+###
+###
+POST http://localhost:3000/clases/addReservation
+Content-Type: application/json
+
+{
+    "id": "6635290aa45647210a49b1a7",
+    "reservation": "aaa"
+}
+###
+POST http://localhost:3000/clases/deleteReservation
+Content-Type: application/json
+
+{
+    "name": "Clase de Yoga",
+    "hour": "8:30 pm",
+    "day": "Lunes",
+    "reservation": "manc"
+}
+###
+POST http://localhost:3000/clases/deleteAllReservations
+Content-Type: application/json
+
+{
+    "name": "Clase de Yoga",
+    "hour": "8:30 pm",
+    "day": "Lunes"
+}
+###
+PUT http://localhost:3000/users/addprogress/745172
+Content-Type: application/json
+
+[
+  
+]
+

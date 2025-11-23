@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/f3be37cda0.js" crossorigin="anonymous"></script>
+    <script type="module" src="../../Controllers/clasescoach.js"></script>
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+    <style>
+        body {
+            background-image: url("../../VIEWS/IMAGES/BACKGROUND2.jpg");
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            background-size: auto;
+            font-size: large;
+            font-style:normal;
+            font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <!-- navbar -->
+    <nav class="navbar navbar-expand-sm navbar-light bg-light" style="font-size: large; height: 100px;">
+        <div class="container">
+            <a class="navbar-brand" href="homecoach" style="border-radius: 40%;"><img class="rounded-circle img-thumbnail" src="../../VIEWS//IMAGES/LOGOITESO.svg" alt="" style="width: 60px; height: 60px;" ></a>
+            <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavId" aria-controls="collapsibleNavId" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="collapsibleNavId">
+                <ul class="navbar-nav me-auto mt-2 mt-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="homecoach" aria-current="page">Inicio<span class="visually-hidden">(current)</span></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="clasescoach">Clases</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="routinescoach">Rutinas</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="exercises">Ejercicios</a>
+                    </li>
+                </ul>
+                <button class="btn btn-secondary border-dark" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+        function logout() {
+            sessionStorage.removeItem('user');
+        location.href = '/';
+        }
+    </script>
+
+    
+        <!-- Contenedor principal -->
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 col-md-10 col-sm-12" style="border-radius: 20px; background-color: rgba(137, 43, 226, 0.912); padding: 5%; margin-top: 5%; margin-bottom: 5%;">
+                    <h1 style="color: white; text-align: center;">
+                        CLASES
+                        <!-- Botón para abrir el modal de agregar clase -->
+                        <div style="text-align: center;">
+                        <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#addClassModal">Agregar clase</button>
+                        <center><lottie-player id="animation" src="../VIEWS/IMAGES/Animation - 1715182374330.json" background="transparent" speed="1" style="width: 100px; height: 100px; display: none;" loop autoplay></lottie-player></center>
+                        </div>
+                    </h1>
+                    <br><div id="Lunes" class="card-title" style="color: white;"><h3 style="color: black;">Lunes</h3></div>
+                    <br><div id="Martes" class="card-title" style="color: white;"><h3 style="color: black;">Martes</h3></div>
+                    <br><div id="Miercoles" class="card-title" style="color: white;"><h3 style="color: black;">Miércoles</h3></div>
+                    <br><div id="Jueves" class="card-title" style="color: white;"><h3 style="color: black;">Jueves</h3></div>
+                    <br><div id="Viernes" class="card-title" style="color: white;"><h3 style="color: black;">Viernes</h3></div>
+                    
+                </div>
+            </div>
+        </div>
+    
+       <!-- Modal de miembros de clase -->
+       <div class="modal fade" id="memberClassModal" tabindex="-1" aria-labelledby="memberClassModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="memberClassModal">Inscritos a clase <h5 class="modal-title" id="nameClassModal"> </h5></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form>
+                            <center><div id="membersDiv"></div></center>
+                        </form>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Salir</button>
+                        </div>
+                    </div>       
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de agregar clase -->
+        <div class="modal fade" id="addClassModal" tabindex="-1" aria-labelledby="addClassModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addClassModalLabel">Agregar clase</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Aquí puedes agregar los campos para seleccionar el horario y tipo de clase -->
+                        <form>
+                            <div class="mb-3">
+                                <label for="classTime" class="form-label">Hora:</label>
+                                <input type="time" class="form-control" id="classTime">
+                            </div>
+                            <div class="mb-3">
+                                <label for="classType" class="form-label">Nombre de clase:</label>
+                                <input type="text" class="form-control" id="classType">
+                            </div>
+                            <div class="mb-3">
+                                <label for="dayselect" class="form-label">Día:</label>
+                                    <select class="form-select" id="dayselect">
+                                        <option selected>Selecciona un día</option>
+                                        <option value="Lunes">Lunes</option>
+                                        <option value="Martes">Martes</option>
+                                        <option value="Miercoles">Miercoles</option>
+                                        <option value="Jueves">Jueves</option>
+                                        <option value="Viernes">Viernes</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-dark" id="addClassBtn">Agregar</button>
+                        </div>
+                    </div>       
+                </div>
+            </div>
+        </div>
+</body>
+</html>
