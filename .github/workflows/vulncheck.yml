@@ -41,18 +41,29 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --json-file-output=snyk-results.json
+          command: test
+          args: --file=CODE/package.json --json-file-output=snyk-results.json
       
       # OWASP Dependency-Check
       - name: Run OWASP Dependency-Check
         run: |
-          docker run --rm -v $(pwd):/src \
+          docker run --rm \
+            -v $(pwd)/CODE:/src \
+            -v $(pwd):/report \
             owasp/dependency-check:latest \
             --scan /src \
             --format JSON \
-            --out /src/dependency-check-report.json \
+            --out /report/dependency-check-report.json \
             --enableExperimental
         continue-on-error: true
+      
+      - name: List generated files
+        run: |
+          echo "=== Archivos JSON generados ==="
+          ls -lh *.json 2>/dev/null || echo "No se encontraron archivos JSON"
+          echo ""
+          echo "=== Buscar todos los JSON ==="
+          find . -name "*.json" -type f | grep -E "(snyk|dependency-check)" || true
       
       - name: Upload SCA Results
         uses: actions/upload-artifact@v4
@@ -74,11 +85,20 @@ jobs:
     
       - name: Run TruffleHog
         run: |
-          docker run --rm -v $(pwd):/src \
+          docker run --rm \
+            -v $(pwd):/pwd \
             trufflesecurity/trufflehog:latest \
-            filesystem /src \
-            --json > trufflehog-output.json || true
+            filesystem /pwd/CODE \
+            --json \
+            --no-update > trufflehog-output.json || true
         continue-on-error: true
+      
+      - name: List generated files
+        run: |
+          echo "=== Archivos de Secret Scanning ==="
+          ls -lh trufflehog-output.json gitleaks-report.json 2>/dev/null || echo "No se encontraron archivos"
+          echo ""
+          cat trufflehog-output.json 2>/dev/null | head -20 || echo "TruffleHog output vacío"
       
       - name: Upload Secret Scanning Results
         uses: actions/upload-artifact@v4
@@ -86,6 +106,7 @@ jobs:
           name: Secret-Scanning-Results
           path: |
             trufflehog-output.json
+            gitleaks-report.json
         if: always()
 
   sast:
@@ -100,36 +121,56 @@ jobs:
         with:
           node-version: '18'
       
+      # Instalar dependencias en CODE/
       - name: Install dependencies
+        working-directory: ./CODE
         run: npm ci || npm install
+        continue-on-error: true
       
-      # ESLint
+      # ESLint Security
       - name: Run ESLint Security
+        working-directory: ./CODE
         run: |
           npm install --save-dev eslint eslint-plugin-security || true
-          npx eslint . --ext .js,.jsx,.ts,.tsx \
+          npx eslint . \
+            --ext .js,.jsx,.ts,.tsx \
             --format json \
-            --output-file eslint-results.json || true
+            --output-file ../eslint-results.json || true
         continue-on-error: true
       
       # NodeJsScan
       - name: Run NodeJsScan
         run: |
-          docker run --rm -v $(pwd):/src \
+          docker run --rm \
+            -v $(pwd)/CODE:/src \
+            -v $(pwd):/output \
             opensecurity/nodejsscan:latest \
-            /src \
-            --json > nodejsscan-results.json || true
+            nodejsscan \
+            --directory /src \
+            --output /output/nodejsscan-results.json \
+            --json || true
         continue-on-error: true
       
       # Semgrep
       - name: Run Semgrep
         run: |
-          docker run --rm -v $(pwd):/src \
+          docker run --rm \
+            -v $(pwd)/CODE:/src \
+            -v $(pwd):/output \
             returntocorp/semgrep \
             semgrep scan /src \
             --config=auto \
-            --json > semgrep-results.json || true
+            --json \
+            --output=/output/semgrep-results.json || true
         continue-on-error: true
+
+      - name: List generated files
+        run: |
+          echo "=== Archivos SAST generados ==="
+          ls -lh *.json 2>/dev/null || echo "No se encontraron archivos"
+          echo ""
+          echo "=== Preview de ESLint ==="
+          cat eslint-results.json 2>/dev/null | head -30 || echo "ESLint output vacío"
       
       - name: Upload SAST Results
         uses: actions/upload-artifact@v4
