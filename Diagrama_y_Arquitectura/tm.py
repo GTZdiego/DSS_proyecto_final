@@ -1,157 +1,206 @@
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 
 from pytm import (
     TM,
     Actor,
     Boundary,
+    Classification,
     Data,
     Dataflow,
     Datastore,
     Server,
-    Lambda,
-    Classification,
     DatastoreType,
 )
 from pytm.pytm import TLSVersion
 
-tm = TM("Ecommerce WebApp AWS Threat Model")
-tm.description = "Threat Model for an eCommerce Arquitecture in AWS with EC2, API Gateway, Lambda and DynamoDB"
+tm = TM("GymCoach App Threat Model")
+tm.description = (
+    "Web application for users and coaches to manage workouts, classes and progress. "
+    "Architecture: HTML/JS frontend served by a Node.js/Express backend with MongoDB Atlas."
+)
 tm.isOrdered = True
 tm.mergeResponses = True
+tm.assumptions = [
+    "All external traffic to the application is over HTTPS through a cloud provider (e.g. Render/Heroku/Nginx).",
+    "MongoDB Atlas is configured with authentication and network access control (IP allow-list / VPC peering).",
+    "Passwords are stored hashed and never in plaintext.",
+    "Admins/coaches use the same web interface but have elevated privileges managed by application roles.",
+]
 
-# ===== Boundaries =====
+# --- Boundaries ---
+
 internet = Boundary("Internet")
-aws_space = Boundary("AWS")
-public_subnet = Boundary("Public Subnet")
-private_subnet = Boundary("Private Subnet")
 
-# ===== Actors =====
-client = Actor("Cliente Web/App")
-client.inBoundary = internet
+app_boundary = Boundary("Application Boundary")  # Node.js server / hosting platform
 
-# ===== Servers & Components =====
-waf = Server("AWS WAF")
-waf.inBoundary = aws_space
+cloud_db_boundary = Boundary("MongoDB Atlas Boundary")
 
-alb = Server("Application Load Balancer")
-alb.inBoundary = aws_space
-alb.controls.isHardened = True
-alb.controls.sanitizesInput = True
+# --- Actors ---
 
-frontend = Server("FrontEnd")
-frontend.inBoundary = public_subnet
-frontend.controls.sanitizesInput = True
-frontend.controls.encodeOutput = True
+user = Actor("End User")
+user.inBoundary = internet
+user.description = "Gym app user that registers, logs in and manages personal workouts."
 
-apigw = Server("API Gateway")
-apigw.inBoundary = public_subnet
-apigw.controls.sanitizesInput = True
-apigw.controls.authenticatesSource = True
-apigw.controls.authorizesSource = True
+coach = Actor("Coach / Admin")
+coach.inBoundary = internet
+coach.description = "Coach with elevated permissions to manage users, exercises and classes."
 
-webserver = Server("Web Server")
-webserver.inBoundary = private_subnet
-webserver.OS = "Amazon Linux"
-webserver.controls.isHardened = True
-webserver.controls.sanitizesInput = True
-webserver.controls.encodesOutput = True
-webserver.controls.authorizesSource = True
+# --- Servers / Components ---
 
-lambda_f = Lambda("Lambda")
-lambda_f.inBoundary = private_subnet
-lambda_f.controls.isHardened = True
+frontend = Server("Web Frontend (HTML/JS)")
+frontend.inBoundary = internet
+frontend.OS = "Browser"
+frontend.description = "Static HTML/CSS/JS served to the user browser."
+frontend.controls.sanitizesInput = False     # mostly client-side validation
+frontend.controls.encodesOutput = True       # DOM/templating encodes output
 
-dynamodb = Datastore("Amazon DynamoDB")
-dynamodb.inBoundary = private_subnet
-dynamodb.isSQL = False
-dynamodb.maxClassification = Classification.SENSITIVE
-dynamodb.storesPII = True
-dynamodb.isEncryptedAtRest = True
+api_server = Server("Node.js Express API")
+api_server.inBoundary = app_boundary
+api_server.OS = "Linux"
+api_server.description = (
+    "Node.js/Express backend defined in Server.js. "
+    "Handles routes /users, /exercises, /clases and renders views."
+)
+api_server.controls.isHardened = False
+api_server.controls.sanitizesInput = True    # validation for body/query params
+api_server.controls.encodesOutput = True
+api_server.controls.authorizesSource = True  # session/JWT/role-based checks
+api_server.sourceFiles = [
+    "BACK/Controllers/Router.js",
+    "BACK/Controllers/User.js",
+    "BACK/Controllers/Exercises.js",
+    "BACK/Controllers/Clases.js",
+]
 
-s3 = Datastore("S3 Bucket - Web App Images")
-s3.inBoundary = private_subnet
-s3.isSql = False
-s3.maxClassification = Classification.PUBLIC
-s3.isEncryptedAtRest = False
+# --- Datastores ---
 
-# ===== Data =====
-user_data = Data("User Data")
-user_data.classification = Classification.SENSITIVE
-user_data.isPII = True
-user_data.isDestEncryptedAtRest = True
+app_db = Datastore("MongoDB Atlas - App Database")
+app_db.inBoundary = cloud_db_boundary
+app_db.OS = "MongoDB Atlas"
+app_db.type = DatastoreType.SQL  # MongoDB is a document store
+app_db.inScope = True
+app_db.controls.isHardened = True
+app_db.maxClassification = Classification.RESTRICTED
+app_db.storesPII = True          # users, emails, maybe health-ish info
+app_db.storesSensitiveData = True
+app_db.port = 27017
+app_db.protocol = "TLS over TCP"
 
-order_data = Data("Order Data")
-order_data.classification = Classification.RESTRICTED
-order_data.isDestEncryptedAtRest = True
+# --- Data Objects ---
 
-# ===== Dataflows =====
-client_to_waf = Dataflow(client, waf, "HTTPS Request (User Login, Orders)")
-client_to_waf.protocol = "HTTPS"
-client_to_waf.dstPort = 443
-client_to_waf.tlsVersion = TLSVersion.TLSv12
+credentials = Data("User Credentials")
+credentials.description = "Email and password used to authenticate users and coaches."
+credentials.classification = Classification.SENSITIVE
+credentials.isPII = True
+credentials.isStored = True
+credentials.isDestEncryptedAtRest = True      # hashed passwords in DB
 
-waf_to_client = Dataflow(waf, client, "HTTPS Respond (Interface/Dashboard)")
-waf_to_client.protocol = "HTTPS"
-waf_to_client.dstPort = 443
-waf_to_client.tlsVersion = TLSVersion.TLSv12
+profile_data = Data("User Profile Data")
+profile_data.description = "User and coach profile data (name, email, role, BMI, etc.)."
+profile_data.classification = Classification.RESTRICTED
+profile_data.isPII = True
+profile_data.isStored = True
+profile_data.isDestEncryptedAtRest = True
 
-waf_to_alb = Dataflow(waf, alb, "Forward HTTPS")
-waf_to_alb.protocol = "HTTPS"
-waf_to_alb.dstPort = 443
-waf_to_alb.tlsVersion = TLSVersion.TLSv12
+workout_data = Data("Workout and Routine Data")
+workout_data.description = "Exercises, routines, goals, progress records."
+workout_data.classification = Classification.SENSITIVE
+workout_data.isStored = True
+workout_data.isDestEncryptedAtRest = True
 
-#alb_to_waf = Dataflow(alb, waf, "Forward HTTPS")
-#alb_to_waf.protocol = "HTTPS"
-#alb_to_waf.dstPort = 443
-#alb_to_waf.tlsVersion = TLSVersion.TLSv12
+class_schedule = Data("Class Schedule Data")
+class_schedule.description = "Classes, schedules, coach assignments."
+class_schedule.classification = Classification.SENSITIVE
+class_schedule.isStored = True
+class_schedule.isDestEncryptedAtRest = True
 
-alb_to_front = Dataflow(alb, frontend, "HTTPS User Action to FrontEnd")
-alb_to_front.protocol = "HTTPS"
-alb_to_front.dstPort = 443
-alb_to_front.tlsVersion = TLSVersion.TLSv12
-alb_to_front.data = user_data
+session_token = Data(
+    name="Session / Auth Token",
+    description="Session cookie or JWT used to maintain authenticated sessions.",
+    classification=Classification.SENSITIVE,
+)
 
-front_to_alb = Dataflow(frontend, alb, "HTTPS FrontEnd Action")
-front_to_alb.protocol = "HTTPS"
-front_to_alb.dstPort = 443
-front_to_alb.tlsVersion = TLSVersion.TLSv12
+# --- Dataflows: Users <-> Frontend ---
 
-front_to_apigw = Dataflow(frontend, apigw, "API Call to Gateway (HTTPS)")
-front_to_apigw.protocol = "HTTPS"
-front_to_apigw.dstPort = 443
-front_to_apigw.tlsVersion = TLSVersion.TLSv12
+user_to_frontend = Dataflow(user, frontend, "HTTP(S) Requests from User")
+user_to_frontend.protocol = "HTTPS"
+user_to_frontend.dstPort = 443
 
-apigw_to_front = Dataflow(apigw, frontend, "API Response (HTTPS)")
-apigw_to_front.protocol = "HTTPS"
-apigw_to_front.dstPort = 443
-apigw_to_front.tlsVersion = TLSVersion.TLSv12
+frontend_to_user = Dataflow(frontend, user, "HTML/JS/CSS Responses to User")
+frontend_to_user.protocol = "HTTPS"
+frontend_to_user.dstPort = 443
 
-apigw_to_webserver = Dataflow(apigw, webserver, "API Request (HTTPS)")
-apigw_to_webserver.protocol = "HTTPS"
-apigw_to_webserver.dstPort = 443
-apigw_to_webserver.tlsVersion = TLSVersion.TLSv12
-apigw_to_webserver.usesSessionTojens = True
+coach_to_frontend = Dataflow(coach, frontend, "HTTP(S) Requests from Coach/Admin")
+coach_to_frontend.protocol = "HTTPS"
+coach_to_frontend.dstPort = 443
 
-webserver_to_apigw = Dataflow(webserver, apigw, "Server Response (HTTPS)")
-webserver_to_apigw.protocol = "HTTPS"
-webserver_to_apigw.dstPort = 443
-webserver_to_apigw.tlsVersion = TLSVersion.TLSv12
-webserver_to_apigw.usesSessionTojens = True
+frontend_to_coach = Dataflow(frontend, coach, "HTML/JS/CSS Responses to Coach/Admin")
+frontend_to_coach.protocol = "HTTPS"
+frontend_to_coach.dstPort = 443
 
-apigw_to_lambda = Dataflow(apigw, lambda_f, "Invoke Lambda")
-apigw_to_lambda.protocol = "HTTPS"
-apigw_to_lambda.data = order_data
+# --- Dataflows: Frontend <-> API Server ---
 
-lambda_to_dynamodb = Dataflow(lambda_f, dynamodb, "Write Orders")
-lambda_to_dynamodb.protocol = "HTTPS"
-lambda_to_dynamodb.data = order_data
+frontend_to_api = Dataflow(frontend, api_server, "API Calls (login, register, CRUD)")
+frontend_to_api.protocol = "HTTPS"
+frontend_to_api.dstPort = 443
+frontend_to_api.tlsVersion = TLSVersion.TLSv12
+frontend_to_api.data = [credentials, profile_data, workout_data, class_schedule, session_token]
+frontend_to_api.usesSessionTokens = True
 
-lambda_to_s3 = Dataflow(lambda_f, s3, "Upload/Read Images")
-lambda_to_s3.protocol = "HTTPS"
+api_to_frontend = Dataflow(api_server, frontend, "API Responses (JSON / HTML)")
+api_to_frontend.protocol = "HTTPS"
+api_to_frontend.dstPort = 443
+api_to_frontend.tlsVersion = TLSVersion.TLSv12
+api_to_frontend.data = [profile_data, workout_data, class_schedule, session_token]
 
-dynamodb_to_s3 = Dataflow(dynamodb, s3, "Get Images")
+# --- Dataflows: API Server <-> MongoDB Atlas ---
 
+api_to_db_auth = Dataflow(api_server, app_db, "Store / Read Credentials")
+api_to_db_auth.protocol = "TLS"
+api_to_db_auth.dstPort = 27017
+api_to_db_auth.data = credentials
 
-# ===== Threat Model Execution =====
+db_to_api_auth = Dataflow(app_db, api_server, "Return Credentials / Auth Data")
+db_to_api_auth.protocol = "TLS"
+db_to_api_auth.dstPort = 27017
+db_to_api_auth.data = credentials
+
+api_to_db_profile = Dataflow(api_server, app_db, "Store / Read User Profiles")
+api_to_db_profile.protocol = "TLS"
+api_to_db_profile.dstPort = 27017
+api_to_db_profile.data = profile_data
+
+db_to_api_profile = Dataflow(app_db, api_server, "Return User Profiles")
+db_to_api_profile.protocol = "TLS"
+db_to_api_profile.dstPort = 27017
+db_to_api_profile.data = profile_data
+
+api_to_db_workouts = Dataflow(api_server, app_db, "CRUD Workouts and Routines")
+api_to_db_workouts.protocol = "TLS"
+api_to_db_workouts.dstPort = 27017
+api_to_db_workouts.data = workout_data
+
+db_to_api_workouts = Dataflow(app_db, api_server, "Return Workouts and Routines")
+db_to_api_workouts.protocol = "TLS"
+db_to_api_workouts.dstPort = 27017
+db_to_api_workouts.data = workout_data
+
+api_to_db_classes = Dataflow(api_server, app_db, "CRUD Classes and Schedules")
+api_to_db_classes.protocol = "TLS"
+api_to_db_classes.dstPort = 27017
+api_to_db_classes.data = class_schedule
+
+db_to_api_classes = Dataflow(app_db, api_server, "Return Classes and Schedules")
+db_to_api_classes.protocol = "TLS"
+db_to_api_classes.dstPort = 27017
+db_to_api_classes.data = class_schedule
+
+# Relacionar token de sesión con los flujos más importantes
+session_token.traverses = [
+    frontend_to_api,
+    api_to_frontend,
+]
+session_token.processedBy = [api_server]
+
 if __name__ == "__main__":
     tm.process()
