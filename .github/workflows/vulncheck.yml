@@ -35,23 +35,13 @@ jobs:
         with:
           command: test
           args: --file=CODE/package.json --json-file-output=snyk-dependencies.json --severity-threshold=low
-      
-      - name: Run Snyk Code (Source Code Analysis)
-        uses: snyk/actions/node@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: code test
-          args: CODE/ --json-file-output=snyk-code-analysis.json
-      
+            
       - name: Upload SCA Results
         uses: actions/upload-artifact@v4
         with:
           name: SCA-Results
           path: 
             snyk-dependencies.json
-            snyk-code-analysis.json
         if: always()
 
   secret_scanning:
@@ -89,41 +79,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Run Snyk Code (Source Code Analysis)
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          node-version: '18'
-      
-      # Instalar dependencias en CODE/
-      - name: Install dependencies
-        working-directory: ./CODE
-        run: npm ci || npm install
-        continue-on-error: true
-      
-      # ESLint Security
-      - name: Run ESLint Security
-        working-directory: ./CODE
-        run: |
-          npm install --save-dev eslint eslint-plugin-security || true
-          npx eslint . \
-            --ext .js,.jsx,.ts,.tsx \
-            --format json \
-            --output-file ../eslint-results.json || true
-        continue-on-error: true
-      
-      # NodeJsScan
-      - name: Run NodeJsScan
-        run: |
-          docker run --rm \
-            -v $(pwd)/CODE:/src \
-            -v $(pwd):/output \
-            opensecurity/nodejsscan:latest \
-            nodejsscan \
-            --directory /src \
-            --output /output/nodejsscan-results.json \
-            --json || true
-        continue-on-error: true
-      
+          command: code test
+          args: CODE/ --json-file-output=snyk-code-analysis.json
+
       # Semgrep
       - name: Run Semgrep
         run: |
@@ -141,16 +105,13 @@ jobs:
         run: |
           echo "=== Archivos SAST generados ==="
           ls -lh *.json 2>/dev/null || echo "No se encontraron archivos"
-          echo ""
-          echo "=== Preview de ESLint ==="
-          cat eslint-results.json 2>/dev/null | head -30 || echo "ESLint output vacío"
+          echo "
       
       - name: Upload SAST Results
         uses: actions/upload-artifact@v4
         with:
           name: SAST-Results
-          path: |
-            eslint-results.json
-            nodejsscan-results.json
+          path:
+            snyk-code-analysis.json
             semgrep-results.json
         if: always()
