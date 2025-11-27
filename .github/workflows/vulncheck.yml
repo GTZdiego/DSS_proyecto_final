@@ -26,7 +26,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
           
-      # Snyk
       - name: Run Snyk Test (Dependencies)
         uses: snyk/actions/node@master
         continue-on-error: true
@@ -53,7 +52,7 @@ jobs:
         with:
           fetch-depth: 0
     
-      - name: Run TruffleHog on CODE directory
+      - name: Run TruffleHog
         run: |
           docker run --rm \
             -v $(pwd):/src \
@@ -88,7 +87,6 @@ jobs:
           command: code test
           args: CODE/ --json-file-output=snyk-code-analysis.json
 
-      # Semgrep
       - name: Run Semgrep
         run: |
           docker run --rm \
@@ -105,7 +103,6 @@ jobs:
         run: |
           echo "=== Archivos SAST generados ==="
           ls -lh *.json 2>/dev/null || echo "No se encontraron archivos"
-          echo "
       
       - name: Upload SAST Results
         uses: actions/upload-artifact@v4
