@@ -120,7 +120,7 @@ jobs:
     steps:
       - run: |
            docker pull zaproxy/zap-stable
-           docker run --user root --rm -v $(pwd):/zap/wrk:rw -w /zap zaproxy/zap-stable zap-baseline.py -t https://98.80.216.157:3000 -x zap-output.xml
+           docker run --user root --rm -v $(pwd):/zap/wrk:rw -w /zap zaproxy/zap-stable zap-baseline.py -t http://98.80.216.157:3000 -x zap-output.xml
 
       - uses: actions/upload-artifact@v4
         with:
