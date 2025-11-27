@@ -27,43 +27,31 @@ jobs:
       - uses: actions/checkout@v2
           
       # Snyk
-      - name: Run Snyk to check for vulnerabilities
+      - name: Run Snyk Test (Dependencies)
         uses: snyk/actions/node@master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=CODE/package.json --json-file-output=snyk-results.json
+          args: --file=CODE/package.json --json-file-output=snyk-dependencies.json --severity-threshold=low
       
-      # OWASP Dependency-Check
-      - name: Run OWASP Dependency-Check
-        run: |
-          docker run --rm \
-            -v $(pwd)/CODE:/src \
-            -v $(pwd):/report \
-            owasp/dependency-check:latest \
-            --scan /src \
-            --format JSON \
-            --out /report/dependency-check-report.json \
-            --enableExperimental
+      - name: Run Snyk Code (Source Code Analysis)
+        uses: snyk/actions/node@master
         continue-on-error: true
-      
-      - name: List generated files
-        run: |
-          echo "=== Archivos JSON generados ==="
-          ls -lh *.json 2>/dev/null || echo "No se encontraron archivos JSON"
-          echo ""
-          echo "=== Buscar todos los JSON ==="
-          find . -name "*.json" -type f | grep -E "(snyk|dependency-check)" || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: CODE/ --json-file-output=snyk-code-analysis.json
       
       - name: Upload SCA Results
         uses: actions/upload-artifact@v4
         with:
           name: SCA-Results
-          path: |
-            snyk-results.json
-            dependency-check-report.json
+          path: 
+            snyk-dependencies.json
+            snyk-code-analysis.json
         if: always()
 
   secret_scanning:
@@ -75,30 +63,23 @@ jobs:
         with:
           fetch-depth: 0
     
-      - name: Run TruffleHog
+      - name: Run TruffleHog on CODE directory
         run: |
           docker run --rm \
-            -v $(pwd):/pwd \
+            -v $(pwd):/src \
             trufflesecurity/trufflehog:latest \
-            filesystem /pwd/CODE \
+            filesystem /src/CODE \
             --json \
-            --no-update > trufflehog-output.json || true
+            --no-update \
+            --fail > trufflehog-output.json || true
         continue-on-error: true
-      
-      - name: List generated files
-        run: |
-          echo "=== Archivos de Secret Scanning ==="
-          ls -lh trufflehog-output.json gitleaks-report.json 2>/dev/null || echo "No se encontraron archivos"
-          echo ""
-          cat trufflehog-output.json 2>/dev/null | head -20 || echo "TruffleHog output vacío"
+
       
       - name: Upload Secret Scanning Results
         uses: actions/upload-artifact@v4
         with:
           name: Secret-Scanning-Results
-          path: |
-            trufflehog-output.json
-            gitleaks-report.json
+          path: trufflehog-output.json
         if: always()
 
   sast:
