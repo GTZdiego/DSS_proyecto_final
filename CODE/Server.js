@@ -8,7 +8,6 @@ const path = require('path');
 const app = express();
 app.use(express.static(path.join(__dirname, './BACK')));
 app.use(express.static(path.join(__dirname, './FRONT')));
-app.use(path.join(__dirname, './FRONT'), express.static(path.join(__dirname, './FRONT')));
 
 const port = 3000;
 app.use(express.json());
